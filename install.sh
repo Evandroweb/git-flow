@@ -1,33 +1,49 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_NAME=$(basename "$0")
 DEFAULT_DEST="/usr/local/bin"
-XDG_LOCAL_BIN="${XDG_DATA_HOME:-$HOME/.local}/bin"
+FALLBACK_DEST="${XDG_DATA_HOME:-$HOME/.local}/bin"
 
-if [ -w "$DEFAULT_DEST" ]; then
-  DESTDIR="$DEFAULT_DEST"
-else
-  DESTDIR="$XDG_LOCAL_BIN"
-fi
+do_install() {
+  local src=$1 dst=$2
+  if [ -w "$(dirname "$dst")" ]; then
+    install -m755 "$src" "$dst"
+  else
+    echo "→ Need sudo to install to $dst"
+    sudo install -m755 "$src" "$dst"
+  fi
+}
 
-DESTDIR="${DESTDIR:-$DEFAULT_DEST}"
+CMDS=(git-sync)
 
-echo "Installing git-sync → $DESTDIR/git-sync"
-
-mkdir -p "$DESTDIR"
-
-install -m 755 scripts/git-sync "$DESTDIR/git-sync" \
-  && echo "✓ Installed git-sync to $DESTDIR" \
-  || { echo "❌ Failed to install to $DESTDIR"; exit 1; }
+for cmd in "${CMDS[@]}"; do
+  src="scripts/$cmd"
+  dst="$DEFAULT_DEST/$cmd"
+  echo "Installing $cmd → $dst"
+  if do_install "$src" "$dst"; then
+    echo "✓ $cmd installed to $dst"
+  else
+    echo "⚠️  Could not install to $DEFAULT_DEST, skipping..."
+  fi
+done
 
 if ! command -v git-sync &>/dev/null; then
   echo
-  echo "⚠️  '$DESTDIR' is not in your PATH."
-  echo "    Add to your shell profile, e.g.:"
-  echo "      export PATH=\"$DESTDIR:\$PATH\""
+  echo "→ Falling back to user directory: $FALLBACK_DEST"
+  mkdir -p "$FALLBACK_DEST"
+  for cmd in "${CMDS[@]}"; do
+    src="scripts/$cmd"
+    dst="$FALLBACK_DEST/$cmd"
+    echo "Installing $cmd → $dst"
+    install -m755 "$src" "$dst"
+  done
+  echo
+  echo "⚠️  NOTICE: $FALLBACK_DEST must be on your PATH."
+  echo "   But to avoid manual steps, re‑run with sudo to install globally:"
+  echo "     curl … | sudo bash"
 fi
 
-# Cria o alias Git
 echo "Adding Git alias: git sync → git-sync"
 git config --global alias.sync "!git-sync"
 
