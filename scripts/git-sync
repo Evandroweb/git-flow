@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
 #
-# git-sync <feature/xyz|hotfix/xyz|bugfix/xyz>
-# Sync your feature, bugfix or hotfix branch with develop/main.
+# git-sync [<branch>]
+# Sync your feature/* or bugfix/* with develop or hotfix/* with main.
 #
 
 set -euo pipefail
 
-error() { printf 'Error: %s\n' "$1" >&2; exit 1; }
-
-usage() {
-  cat <<EOF
-Usage: $(basename "$0") <branch>
-  branch must start with feature/, bugfix or hotfix/
-EOF
+error() {
+  printf 'Error: %s\n' "$1" >&2
   exit 1
 }
 
-require_name() {
-  [[ $# -ge 1 ]] && NAME=$1 || usage
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") [<branch>]
+  If no <branch> given, uses the current branch.
+  Branch must start with feature/, bugfix or hotfix/.
+EOF
+  exit 1
 }
 
 do_stash() {
@@ -31,15 +31,14 @@ do_pop() {
 }
 
 sync_existing() {
-  require_name "$@"
-  FULL=$NAME
+  local FULL=$1
 
   if [[ ! "$FULL" =~ ^(feature|bugfix|hotfix)\/.+$ ]]; then
     error "Branch name must start with feature/ or hotfix/."
   fi
 
-  PREFIX=${FULL%%/*}
-  BASE=develop
+  local PREFIX=${FULL%%/*}
+  local BASE=develop
   [[ "$PREFIX" == hotfix ]] && BASE=main
 
   echo "→ Fetching remote and pruning…"
@@ -82,8 +81,16 @@ EOF
   echo "✔ Synchronized '${FULL}' with '${BASE}'"
 }
 
-if [ $# -ne 1 ]; then
+if [ $# -gt 1 ]; then
   usage
 fi
 
-sync_existing "$1"
+if [ $# -eq 1 ]; then
+  BRANCH_NAME=$1
+else
+  if ! BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD 2>/dev/null); then
+    error "Not a git repo or unable to detect current branch."
+  fi
+fi
+
+sync_existing "$BRANCH_NAME"
