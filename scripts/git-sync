@@ -104,12 +104,13 @@ push_remote() {
 }
 
 main() {
-  local branch
+  local branch base
   branch=$(get_branch_name "$@")
-  echo "→ Starting sync for branch '${branch}'"
+  base=$(detect_base "$branch")
+  echo "→ Starting sync for branch '${branch}' against '${base}'"
 
   local do_push=false
-  if [[ "$1" == "--push" ]]; then
+  if [[ $# -gt 0 && "$1" == "--push" ]]; then
     do_push=true
     shift
   fi
@@ -119,17 +120,20 @@ main() {
   do_stash
 
   trap 'do_pop true; exit 1' ERR INT
-  sync_branch "$(detect_base "$branch")"
-  merge_base_into "$(detect_base "$branch")" "$branch"
+  sync_branch "$base"
+  merge_base_into "$base" "$branch"
   trap - ERR
 
   do_pop
 
+  local done_msg="✔ Local branch '${branch}' synced with '${base}'"
+
   if $do_push; then
     push_remote "$branch"
+    done_msg+=" and pushed to 'origin/${branch}'"
   fi
 
-  echo "✔ Branch '${branch}' synced${do_push:+ and pushed} with '${base}'"
+  echo "$done_msg"
 }
 
 main "$@"
