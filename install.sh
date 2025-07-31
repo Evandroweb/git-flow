@@ -3,7 +3,7 @@ set -euo pipefail
 
 REPO="EvandroWeb/git-flow"
 BRANCH="main"
-BASE_URL="https://rawcdn.githack.com/${REPO}/${BRANCH}/scripts"
+BASE_URL="https://raw.githack.com/${REPO}/${BRANCH}/scripts"
 
 DEFAULT_DEST="/usr/local/bin"
 CMDS=(git-sync)
