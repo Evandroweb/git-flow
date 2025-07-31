@@ -42,33 +42,13 @@ validate_prefix() {
 }
 
 fetch_and_prune() {
-  echo "→ [STEP 1/6] Fetch remote and prune"
+  echo "→ [STEP 1/5] Fetch remote and prune"
   git fetch --prune origin
-}
-
-check_or_create_remote() {
-  echo "→ [STEP 2/6] Check remote branch"
-  if git show-ref --verify --quiet "refs/remotes/origin/$1"; then
-    return 0
-  fi
-
-  echo
-  echo "⚠️  Remote branch 'origin/$1' not found."
-  echo "   Do you want to push and set upstream for '$1' now? [y/N]"
-  read -r answer
-  if [[ "$answer" =~ ^[Yy]$ ]]; then
-    echo "→ Pushing '$1' to origin and setting upstream"
-    git push -u origin "$1" || error "Failed to push and set upstream."
-  else
-    echo "→ Skipping sync; you can push later with:"
-    echo "     git push -u origin $1"
-    exit 0
-  fi
 }
 
  do_stash() {
   local MSG="git-sync auto-stash on $(date '+%Y-%m-%d %H:%M:%S')"
-  echo "→ [STEP 3/6] Stash uncommitted changes: ${MSG}"
+  echo "→ [STEP 2/5] Stash uncommitted changes: ${MSG}"
 
   local output
   output=$(git stash push --keep-index --include-untracked -m "${MSG}")
@@ -82,13 +62,13 @@ check_or_create_remote() {
 }
 
 sync_branch() {
-  echo "→ [STEP 4/6] Sync base '$(detect_base "$1")'"
+  echo "→ [STEP 3/5] Sync base '$(detect_base "$1")'"
   git checkout "$(detect_base "$1")"
   git pull --ff-only origin "$(detect_base "$1")"
 }
 
 merge_base_into() {
-  echo "→ [STEP 5/6] Merge into '$1'"
+  echo "→ [STEP 4/5] Merge into '$1'"
   git checkout "$2"
   git merge --no-ff "$1"
 }
@@ -102,7 +82,7 @@ do_pop() {
   fi
 
   if [[ "$trap" != "true" ]]; then
-    echo "→ [STEP 6/6] Restore stash"
+    echo "→ [STEP 5/5] Restore stash"
   else
     echo "⚠️  Error occurred in sync. Restoring stash…"
   fi
@@ -111,14 +91,31 @@ do_pop() {
     || echo "⚠️  Could not pop ${LAST_STASH_REF}"
 }
 
+push_remote() {
+  echo "→ [PUSH MODE] Ensuring remote branch origin/$1"
+
+  if git show-ref --verify --quiet "refs/remotes/origin/$1"; then
+    echo "→ Remote exists → pushing commits"
+    git push origin "$1" || error "Push failed."
+  else
+    echo "→ Remote not found → creating branch and pushing HEAD"
+    git push -u origin "HEAD:$1" || error "Creating remote branch failed."
+  fi
+}
+
 main() {
   local branch
   branch=$(get_branch_name "$@")
   echo "→ Starting sync for branch '${branch}'"
 
+  local do_push=false
+  if [[ "$1" == "--push" ]]; then
+    do_push=true
+    shift
+  fi
+
   validate_prefix "$branch"
   fetch_and_prune
-  check_or_create_remote "$branch"
   do_stash
 
   trap 'do_pop true; exit 1' ERR INT
@@ -128,7 +125,11 @@ main() {
 
   do_pop
 
-  echo "✔ Branch '${branch}' is now synchronized with '$(detect_base "$branch")'"
+  if $do_push; then
+    push_remote "$branch"
+  fi
+
+  echo "✔ Branch '${branch}' synced${do_push:+ and pushed} with '${base}'"
 }
 
 main "$@"
