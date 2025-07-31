@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 #
 # git-sync [<branch>]
-# Sync your feature/* or bugfix/* with develop, # or hotfix/* with main
+# Sync your feature/* or bugfix/* with develop,
+# or hotfix/* with main.
 #
 
 set -euo pipefail
-
-# ─── Helpers ────────────────────────────────────────────────────────────────
 
 error() {
   printf 'Error: %s\n' "$1" >&2
@@ -21,8 +20,6 @@ Usage: $(basename "$0") [<branch>]
 EOF
   exit 1
 }
-
-# ─── Core Steps ─────────────────────────────────────────────────────────────
 
 get_branch_name() {
   if [ $# -gt 1 ]; then
@@ -44,8 +41,17 @@ validate_prefix() {
 
 detect_base() {
   local full=$1
-  local prefix=${full%%/*}
-  [[ "$prefix" == hotfix ]] && echo main || echo develop
+  [[ "${full%%/*}" == hotfix ]] && echo main || echo develop
+}
+
+do_stash() {
+  echo "→ Stashing uncommitted changes…"
+  git stash push --keep-index --include-untracked
+}
+
+do_pop() {
+  echo "→ Restoring stash…"
+  git stash pop || echo "⚠️  Nothing to pop."
 }
 
 fetch_and_prune() {
@@ -53,37 +59,25 @@ fetch_and_prune() {
   git fetch --prune origin
 }
 
-check_remote_branch() {
+check_or_create_remote() {
   local full=$1
-  if ! git ls-remote --exit-code --heads origin "$full" &>/dev/null; then
-    cat <<EOF
+  if git show-ref --verify --quiet "refs/remotes/origin/${full}"; then
+    return 0
+  fi
 
-⚠️  Remote branch 'origin/${full}' not found.
-
-Possible reasons:
-  • You forgot to push your branch.
-  • It was deleted remotely.
-
-Fixes:
-  1. Push it:
-       git push -u origin "${full}"
-  2. If deleted upstream, review or rename:
-       git log "${full}"
-       git branch -m "${full}" new-name
-
-EOF
+  echo
+  echo "⚠️  Remote branch 'origin/${full}' not found."
+  echo "   Do you want to push and set upstream for '${full}' now? [y/N]"
+  read -r answer
+  if [[ "$answer" =~ ^[Yy]$ ]]; then
+    echo "→ Pushing '${full}' to origin and setting upstream…"
+    git push -u origin "${full}" \
+      || error "Failed to push and set upstream."
+  else
+    echo "→ Skipping sync; you can push later with:"
+    echo "     git push -u origin ${full}"
     exit 0
   fi
-}
-
-stash_changes() {
-  echo "→ Stashing uncommitted changes…"
-  git stash push --keep-index --include-untracked
-}
-
-pop_stash() {
-  echo "→ Restoring stash…"
-  git stash pop || echo "⚠️  Nothing to pop."
 }
 
 sync_branch() {
@@ -101,23 +95,21 @@ merge_base_into() {
   git merge --no-ff "$base"
 }
 
-# ─── Main Orchestration ────────────────────────────────────────────────────
-
 main() {
   local branch
   branch=$(get_branch_name "$@")
-  validate_prefix  "$branch"
+  validate_prefix "$branch"
 
   local base
   base=$(detect_base "$branch")
 
   fetch_and_prune
-  check_remote_branch "$branch"
+  check_or_create_remote "$branch"
 
-  stash_changes
+  do_stash
   sync_branch     "$base"
   merge_base_into "$base" "$branch"
-  pop_stash
+  do_pop
 
   echo "✔ Synchronized '${branch}' with '${base}'"
 }
