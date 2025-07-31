@@ -32,16 +32,13 @@ get_branch_name() {
   fi
 }
 
-validate_prefix() {
-  local full=$1
-  if [[ ! "$full" =~ ^(feature|bugfix|hotfix)/.+$ ]]; then
-    error "Branch name must start with feature/, bugfix/ or hotfix/."
-  fi
+detect_base() {
+  [[ "${1%%/*}" == hotfix ]] && echo main || echo develop
 }
 
-detect_base() {
-  local full=$1
-  [[ "${full%%/*}" == hotfix ]] && echo main || echo develop
+validate_prefix() {
+  [[ "$1" =~ ^(feature|bugfix|hotfix)/.+$ ]] \
+    || error "Branch name must start with feature/, bugfix/ or hotfix/."
 }
 
 fetch_and_prune() {
@@ -51,22 +48,20 @@ fetch_and_prune() {
 
 check_or_create_remote() {
   echo "→ [STEP 2/6] Check remote branch"
-  local full=$1
-  if git show-ref --verify --quiet "refs/remotes/origin/${full}"; then
+  if git show-ref --verify --quiet "refs/remotes/origin/$1"; then
     return 0
   fi
 
   echo
-  echo "⚠️  Remote branch 'origin/${full}' not found."
-  echo "   Do you want to push and set upstream for '${full}' now? [y/N]"
+  echo "⚠️  Remote branch 'origin/$1' not found."
+  echo "   Do you want to push and set upstream for '$1' now? [y/N]"
   read -r answer
   if [[ "$answer" =~ ^[Yy]$ ]]; then
-    echo "→ Pushing '${full}' to origin and setting upstream"
-    git push -u origin "${full}" \
-      || error "Failed to push and set upstream."
+    echo "→ Pushing '$1' to origin and setting upstream"
+    git push -u origin "$1" || error "Failed to push and set upstream."
   else
     echo "→ Skipping sync; you can push later with:"
-    echo "     git push -u origin ${full}"
+    echo "     git push -u origin $1"
     exit 0
   fi
 }
@@ -75,40 +70,51 @@ do_stash() {
   local MSG="git-sync auto-stash on $(date '+%Y-%m-%d %H:%M:%S')"
   echo "→ [STEP 3/6] Stash uncommitted changes: ${MSG}"
   git stash push --keep-index --include-untracked -m "${MSG}"
+  LAST_STASH_REF="stash@{0}"
 }
 
 sync_branch() {
-  echo "→ [STEP 4/6] Sync base '$(detect_base "$branch")'"
-  local base=$1
-  git checkout "$base"
-  git pull --ff-only origin "$base"
+  echo "→ [STEP 4/6] Sync base '$(detect_base "$1")'"
+  git checkout "$(detect_base "$1")"
+  git pull --ff-only origin "$(detect_base "$1")"
 }
 
 merge_base_into() {
-  echo "→ [STEP 5/6] Merge into '${branch}'"
-  local base=$1 full=$2
-  git checkout "$full"
-  git merge --no-ff "$base"
+  echo "→ [STEP 5/6] Merge into '$1'"
+  git checkout "$2"
+  git merge --no-ff "$1"
 }
 
 do_pop() {
-  echo "→ [STEP 6/6] Restore stash"
-  git stash pop || echo "⚠️  Nothing to pop."
+  local trap="${1:-false}"
+
+  if [[ "$trap" != "true" ]]; then
+    echo "→ [STEP 6/6] Restore stash"
+  else
+    echo "⚠️  Error occurred in sync. Restoring stash…"
+  fi
+
+  if [[ -n "${LAST_STASH_REF-}" ]]; then
+    git stash pop --index "${LAST_STASH_REF}" || echo "⚠️  Could not pop ${LAST_STASH_REF}"
+  else
+    echo "⚠️  Nothing to pop."
+  fi
 }
 
 main() {
-  echo "→ Starting sync for branch '${branch}'"
+  local branch
   branch=$(get_branch_name "$@")
+  echo "→ Starting sync for branch '${branch}'"
 
+  validate_prefix "$branch"
   fetch_and_prune
-
   check_or_create_remote "$branch"
-
   do_stash
 
+  trap 'do_pop true; exit 1' ERR
   sync_branch "$(detect_base "$branch")"
-
   merge_base_into "$(detect_base "$branch")" "$branch"
+  trap - ERR
 
   do_pop
 
