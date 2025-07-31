@@ -66,11 +66,19 @@ check_or_create_remote() {
   fi
 }
 
-do_stash() {
+ do_stash() {
   local MSG="git-sync auto-stash on $(date '+%Y-%m-%d %H:%M:%S')"
   echo "→ [STEP 3/6] Stash uncommitted changes: ${MSG}"
-  git stash push --keep-index --include-untracked -m "${MSG}"
-  LAST_STASH_REF="stash@{0}"
+
+  local output
+  output=$(git stash push --keep-index --include-untracked -m "${MSG}")
+
+  if ! grep -q "No local changes to save" <<< "$output"; then
+    STASHED=true
+    LAST_STASH_REF="stash@{0}"
+  else
+    STASHED=false
+  fi
 }
 
 sync_branch() {
@@ -88,17 +96,19 @@ merge_base_into() {
 do_pop() {
   local trap="${1:-false}"
 
+  if [[ "${STASHED:-false}" != "true" ]]; then
+    [[ "$trap" != "true" ]] && echo "→ No auto-stash to restore."
+    return
+  fi
+
   if [[ "$trap" != "true" ]]; then
     echo "→ [STEP 6/6] Restore stash"
   else
     echo "⚠️  Error occurred in sync. Restoring stash…"
   fi
 
-  if [[ -n "${LAST_STASH_REF-}" ]]; then
-    git stash pop --index "${LAST_STASH_REF}" || echo "⚠️  Could not pop ${LAST_STASH_REF}"
-  else
-    echo "⚠️  Nothing to pop."
-  fi
+  git stash pop --index "${LAST_STASH_REF}" \
+    || echo "⚠️  Could not pop ${LAST_STASH_REF}"
 }
 
 main() {
