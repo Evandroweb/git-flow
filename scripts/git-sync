@@ -44,22 +44,13 @@ detect_base() {
   [[ "${full%%/*}" == hotfix ]] && echo main || echo develop
 }
 
-do_stash() {
-  echo "→ Stashing uncommitted changes…"
-  git stash push --keep-index --include-untracked
-}
-
-do_pop() {
-  echo "→ Restoring stash…"
-  git stash pop || echo "⚠️  Nothing to pop."
-}
-
 fetch_and_prune() {
-  echo "→ Fetching remote and pruning…"
+  echo "→ [STEP 1/6] Fetch remote and prune"
   git fetch --prune origin
 }
 
 check_or_create_remote() {
+  echo "→ [STEP 2/6] Check remote branch"
   local full=$1
   if git show-ref --verify --quiet "refs/remotes/origin/${full}"; then
     return 0
@@ -70,7 +61,7 @@ check_or_create_remote() {
   echo "   Do you want to push and set upstream for '${full}' now? [y/N]"
   read -r answer
   if [[ "$answer" =~ ^[Yy]$ ]]; then
-    echo "→ Pushing '${full}' to origin and setting upstream…"
+    echo "→ Pushing '${full}' to origin and setting upstream"
     git push -u origin "${full}" \
       || error "Failed to push and set upstream."
   else
@@ -80,38 +71,48 @@ check_or_create_remote() {
   fi
 }
 
+do_stash() {
+  local MSG="git-sync auto-stash on $(date '+%Y-%m-%d %H:%M:%S')"
+  echo "→ [STEP 3/6] Stash uncommitted changes: ${MSG}"
+  git stash push --keep-index --include-untracked -m "${MSG}"
+}
+
 sync_branch() {
+  echo "→ [STEP 4/6] Sync base '$(detect_base "$branch")'"
   local base=$1
-  echo "→ Syncing base '${base}'…"
   git checkout "$base"
   git pull --ff-only origin "$base"
 }
 
 merge_base_into() {
+  echo "→ [STEP 5/6] Merge into '${branch}'"
   local base=$1 full=$2
-  echo "→ Checking out '${full}'…"
   git checkout "$full"
-  echo "→ Merging '${base}' → '${full}'…"
   git merge --no-ff "$base"
 }
 
-main() {
-  local branch
-  branch=$(get_branch_name "$@")
-  validate_prefix "$branch"
+do_pop() {
+  echo "→ [STEP 6/6] Restore stash"
+  git stash pop || echo "⚠️  Nothing to pop."
+}
 
-  local base
-  base=$(detect_base "$branch")
+main() {
+  echo "→ Starting sync for branch '${branch}'"
+  branch=$(get_branch_name "$@")
 
   fetch_and_prune
+
   check_or_create_remote "$branch"
 
   do_stash
-  sync_branch     "$base"
-  merge_base_into "$base" "$branch"
+
+  sync_branch "$(detect_base "$branch")"
+
+  merge_base_into "$(detect_base "$branch")" "$branch"
+
   do_pop
 
-  echo "✔ Synchronized '${branch}' with '${base}'"
+  echo "✔ Branch '${branch}' is now synchronized with '$(detect_base "$branch")'"
 }
 
 main "$@"
