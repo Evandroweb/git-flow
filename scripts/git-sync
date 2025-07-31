@@ -121,7 +121,7 @@ main() {
   check_or_create_remote "$branch"
   do_stash
 
-  trap 'do_pop true; exit 1' ERR
+  trap 'do_pop true; exit 1' ERR INT
   sync_branch "$(detect_base "$branch")"
   merge_base_into "$(detect_base "$branch")" "$branch"
   trap - ERR
