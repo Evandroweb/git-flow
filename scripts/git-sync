@@ -30,14 +30,6 @@ validate_prefix() {
     || error "⚠️  Branch name must start with feature/, bugfix/ or hotfix/."
 }
 
-ensure_ssh_agent() {
-  if [ -z "${SSH_AUTH_SOCK-}" ]; then
-    echo "→ Starting ssh-agent to cache passphrase"
-    eval "$(ssh-agent -s)" >/dev/null
-    ssh-add || error "⚠️  Failed to add SSH key to agent"
-  fi
-}
-
 fetch_with_prune() {
   echo "→ [STEP 1/2] Fetch remote and prune"
   git fetch --prune origin
@@ -85,6 +77,8 @@ push_remote() {
 }
 
 main() {
+  export GIT_SSH_COMMAND="ssh -o ControlMaster=auto -o ControlPersist=45s -o ControlPath=/tmp/ssh_mux_%h_%p_%r"
+
   local do_push=false
   if [[ "${1-}" == "--push" ]]; then
     do_push=true
@@ -96,7 +90,6 @@ main() {
   echo "→ Starting sync for '${BRANCH}' against '${BASE}'"
 
   validate_prefix
-  ensure_ssh_agent
   fetch_with_prune
   sync_rebase
 
