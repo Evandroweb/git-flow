@@ -63,7 +63,7 @@ push_remote() {
 
   if git merge-base --is-ancestor "${ORIGIN_OLD}" "${LOCAL}"; then
     echo "↳ Remote is behind → pushing fast-forward"
-    git push origin "${BRANCH}" error "⚠️  Push failed."
+    git push origin "${BRANCH}" || error "⚠️  Push failed."
     return
   fi
 
