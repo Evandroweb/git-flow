@@ -84,7 +84,7 @@ do_pop() {
   if [[ "$trap" != "true" ]]; then
     echo "→ [STEP 5/5] Restore stash"
   else
-    echo "⚠️  Error occurred in sync. Restoring stash…"
+    echo "⚠️  Error occurred in sync. Restore stash"
   fi
 
   git stash pop --index "${LAST_STASH_REF}" \
@@ -92,22 +92,26 @@ do_pop() {
 }
 
 push_remote() {
-  echo "→ [PUSH MODE] Ensuring remote branch origin/$1"
-
-  if git show-ref --verify --quiet "refs/remotes/origin/$1"; then
-    echo "→ Remote exists → pushing commits"
-    git push origin "$1" || error "Push failed."
+  echo "→ [PUSH MODE] Check remote branch 'origin/${BRANCH}'"
+  if git show-ref --verify --quiet "refs/remotes/origin/${BRANCH}"; then
+    echo "→ [PUSH MODE] Push '${BRANCH}' to 'origin/${BRANCH}'"
+    git push origin "${BRANCH}" || error "Push failed."
   else
-    echo "→ Remote not found → creating branch and pushing HEAD"
-    git push -u origin "HEAD:$1" || error "Creating remote branch failed."
+    create_remote_branch
   fi
+}
+
+create_remote_branch() {
+  echo "→ [PUSH MODE] Create remote branch 'origin/${BRANCH}' and push"
+  git push -u origin "HEAD:${BRANCH}" \
+    || error "Failed to create remote branch."
 }
 
 main() {
   local branch base
   branch=$(get_branch_name "$@")
   base=$(detect_base "$branch")
-  echo "→ Starting sync for branch '${branch}' against '${base}'"
+  echo "→ Starting sync for branch '${branch}' with '${base}'"
 
   local do_push=false
   if [[ $# -gt 0 && "$1" == "--push" ]]; then

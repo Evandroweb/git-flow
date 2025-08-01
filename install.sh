@@ -28,6 +28,7 @@ for cmd in "${CMDS[@]}"; do
 done
 
 git config --global alias.sync "!git-sync"
+git config --global alias['sync-push'] '!git sync --push'
 
 cat <<EOF
 
