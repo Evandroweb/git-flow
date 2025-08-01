@@ -84,7 +84,7 @@ do_pop() {
   if [[ "$trap" != "true" ]]; then
     echo "→ [STEP 5/5] Restore stash"
   else
-    echo "⚠️  Error occurred in sync. Restore stash"
+    echo "⚠️  Error occurred    in sync. Restore stash"
   fi
 
   git stash pop --index "${LAST_STASH_REF}" \
@@ -130,7 +130,7 @@ main() {
 
   do_pop
 
-  local done_msg="✔ Local branch '${branch}' synced with '${base}'"
+  local done_msg="✔ Localaa branch '${branch}' synced with '${base}'"
 
   if $do_push; then
     push_remote "$branch"
@@ -140,4 +140,4 @@ main() {
   echo "$done_msg"
 }
 
-main "$@"
+main  "$@"
