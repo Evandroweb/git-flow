@@ -42,7 +42,7 @@ sync_rebase() {
   fi
 }
 
-data_push_remote() {
+push_remote() {
   echo "→ [Push mode] Checking remote branch 'origin/${BRANCH}'"
   local ORIGIN_OLD
   ORIGIN_OLD=$(git ls-remote origin "refs/heads/${BRANCH}" | awk '{print $1}') || ORIGIN_OLD=
