@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
-# git-sync [--push] [<branch>]
+# git-sync [--push]
 # Sync your feature/* or bugfix/* with develop,
-# or hotfix/* with main, using rebase with autostash.
+# or hotfix/* with main, using git rebase.
 # Optionally push/create remote branch after.
 #
 set -euo pipefail
@@ -10,22 +10,15 @@ set -euo pipefail
 error() { printf 'Error: %s\n' "$1" >&2; exit 1; }
 usage() {
   cat <<EOF
-Usage: $(basename "$0") [--push] [<branch>]
-  --push      after syncing, push (and create) remote branch
-  <branch>    branch to sync; defaults to current branch
+Usage: $(basename "$0") [--push]
+  --push    after syncing, push (and create) remote branch
 EOF
   exit 1
 }
 
 get_branch_name() {
-  if [ $# -gt 1 ]; then
-    usage
-  elif [ $# -eq 1 ]; then
-    echo "$1"
-  else
-    git rev-parse --abbrev-ref HEAD 2>/dev/null \
-      || error "⚠️  Not a git repo or cannot detect current branch."
-  fi
+  git rev-parse --abbrev-ref HEAD 2>/dev/null \
+    || error "⚠️  Not a git repo or cannot detect current branch."
 }
 
 detect_base() {
@@ -72,7 +65,7 @@ main() {
     shift
   fi
 
-  BRANCH=$(get_branch_name "$@")
+  BRANCH=$(get_branch_name)
   BASE=$(detect_base)
   echo "→ Starting sync for '${BRANCH}' against '${BASE}'"
 
@@ -89,4 +82,4 @@ main() {
   fi
 }
 
-main "$@"
+main
