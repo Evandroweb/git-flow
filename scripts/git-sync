@@ -1,22 +1,17 @@
 #!/usr/bin/env bash
 #
-# git-sync [<branch>]
+# git-sync [--push] [<branch>]
 # Sync your feature/* or bugfix/* with develop,
-# or hotfix/* with main.
-#
+# or hotfix/* with main. Optionally push/create remote branch.
 
 set -euo pipefail
 
-error() {
-  printf 'Error: %s\n' "$1" >&2
-  exit 1
-}
-
+error() { printf 'Error: %s\n' "$1" >&2; exit 1; }
 usage() {
   cat <<EOF
-Usage: $(basename "$0") [<branch>]
-  If no <branch> given, uses the current branch.
-  Branch must start with feature/, bugfix/ or hotfix/.
+Usage: $(basename "$0") [--push] [<branch>]
+  --push      after syncing, push (and create) remote branch
+  <branch>    branch to sync; defaults to current branch
 EOF
   exit 1
 }
@@ -33,11 +28,11 @@ get_branch_name() {
 }
 
 detect_base() {
-  [[ "${1%%/*}" == hotfix ]] && echo main || echo develop
+  [[ "${BRANCH%%/*}" == hotfix ]] && echo main || echo develop
 }
 
 validate_prefix() {
-  [[ "$1" =~ ^(feature|bugfix|hotfix)/.+$ ]] \
+  [[ "${BRANCH}" =~ ^(feature|bugfix|hotfix)/.+$ ]] \
     || error "Branch name must start with feature/, bugfix/ or hotfix/."
 }
 
@@ -46,14 +41,13 @@ fetch_and_prune() {
   git fetch --prune origin
 }
 
- do_stash() {
+do_stash() {
   local MSG="git-sync auto-stash on $(date '+%Y-%m-%d %H:%M:%S')"
   echo "→ [STEP 2/5] Stash uncommitted changes: ${MSG}"
 
   local output
   output=$(git stash push --keep-index --include-untracked -m "${MSG}")
-
-  if ! grep -q "No local changes to save" <<< "$output"; then
+  if ! grep -q "No local changes to save" <<< "${output}"; then
     STASHED=true
     LAST_STASH_REF="stash@{0}"
   else
@@ -62,15 +56,15 @@ fetch_and_prune() {
 }
 
 sync_branch() {
-  echo "→ [STEP 3/5] Sync base '$(detect_base "$1")'"
-  git checkout "$(detect_base "$1")"
-  git pull --ff-only origin "$(detect_base "$1")"
+  echo "→ [STEP 3/5] Sync base '${BASE}'"
+  git checkout "${BASE}"
+  git pull --ff-only origin "${BASE}"
 }
 
 merge_base_into() {
-  echo "→ [STEP 4/5] Merge into '$1'"
-  git checkout "$2"
-  git merge --no-ff "$1"
+  echo "→ [STEP 4/5] Merge '${BASE}' into '${BRANCH}'"
+  git checkout "${BRANCH}"
+  git merge --no-ff "${BASE}"
 }
 
 do_pop() {
@@ -108,36 +102,33 @@ create_remote_branch() {
 }
 
 main() {
-  local branch base
-  branch=$(get_branch_name "$@")
-  base=$(detect_base "$branch")
-  echo "→ Starting sync for branch '${branch}' with '${base}'"
+  BRANCH=$(get_branch_name "$@")
+  BASE=$(detect_base "${BRANCH}")
+  echo "→ Starting sync for '${BRANCH}' against '${BASE}'"
 
   local do_push=false
-  if [[ $# -gt 0 && "$1" == "--push" ]]; then
+  if [[ "${BRANCH}" == "--push" ]]; then
     do_push=true
     shift
   fi
 
-  validate_prefix "$branch"
+  validate_prefix
   fetch_and_prune
   do_stash
 
   trap 'do_pop true; exit 1' ERR INT
-  sync_branch "$base"
-  merge_base_into "$base" "$branch"
-  trap - ERR
+  sync_branch
+  merge_base_into
+  trap - ERR INT
 
   do_pop
 
-  local done_msg="✔ Local branch '${branch}' synced with '${base}'"
-
   if $do_push; then
-    push_remote "$branch"
-    done_msg+=" and pushed to 'origin/${branch}'"
+    push_remote
+    echo "✔ Local branch '${BRANCH}' synced with '${BASE}' and pushed to 'origin/${BRANCH}'"
+  else
+    echo "✔ Local branch '${BRANCH}' synced with '${BASE}'"
   fi
-
-  echo "$done_msg"
 }
 
 main "$@"
