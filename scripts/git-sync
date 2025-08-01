@@ -52,7 +52,7 @@ sync_rebase() {
 push_remote() {
   echo "→ [PUSH MODE] Ensure remote branch 'origin/${BRANCH}' exists"
   if git show-ref --verify --quiet "refs/remotes/origin/${BRANCH}"; then
-    echo "↳ Remote exists → push commits"
+    echo "↳ Remote exists → Push commits"
     git push origin "${BRANCH}" || error "⚠️  Push failed."
   else
     create_remote_branch
@@ -60,7 +60,7 @@ push_remote() {
 }
 
 create_remote_branch() {
-  echo "↳ Create remote branch 'origin/${BRANCH}' and push commits"
+  echo "↳ Remote does not exists → Create remote branch 'origin/${BRANCH}' and push commits"
   git push -u origin "HEAD:${BRANCH}" \
     || error "⚠️  Failed to create remote branch."
 }
