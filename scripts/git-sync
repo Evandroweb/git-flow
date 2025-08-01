@@ -65,71 +65,21 @@ create_remote_branch() {
     || error "⚠️  Failed to create remote branch."
 }
 
-# sync_base_branch() {
-#   echo "→ [STEP 3/5] Sync base '${BASE}'"
-#   git checkout "${BASE}"
-#   git pull --ff-only origin "${BASE}"
-# }
-# merge_base_into() {
-#   echo "→ [STEP 4/5] Rebase '${BRANCH}' onto '${BASE}'"
-#   git checkout "${BRANCH}"
-#   git rebase "${BASE}" --autostash || {
-#     error "↳ Rebase failed. Resolve conflicts, then 'git rebase --continue'."
-#   }
-# }
-# Not necessary with rebase --autostash
-# do_stash() {
-#   local MSG="git-sync auto-stash on $(date '+%Y-%m-%d %H:%M:%S')"
-#   echo "→ [STEP 2/5] Stash uncommitted changes: ${MSG}"
-
-#   local output
-#   output=$(git stash push --keep-index --include-untracked -m "${MSG}")
-#   if ! grep -q "↳ No local changes to save" <<< "${output}"; then
-#     STASHED=true
-#     LAST_STASH_REF="stash@{0}"
-#   else
-#     STASHED=false
-#   fi
-# }
-# do_pop() {
-#   local trap="${1:-false}"
-
-#   if [[ "${STASHED:-false}" != "true" ]]; then
-#     [[ "$trap" != "true" ]] && echo "↳ No auto-stash to restore."
-#     return
-#   fi
-
-#   if [[ "$trap" != "true" ]]; then
-#     echo "→ [STEP 5/5] Restore stash"
-#   else
-#     echo "⚠️  Error occurred in sync. Restore stash"
-#   fi
-
-#   git stash pop --index "${LAST_STASH_REF}" \
-#     || echo "⚠️  Could not pop ${LAST_STASH_REF}"
-# }
-
 main() {
-  BRANCH=$(get_branch_name "$@")
-  BASE=$(detect_base)
-  echo "→ Starting sync for '${BRANCH}' against '${BASE}'"
-
   local do_push=false
-  if [[ "${BRANCH}" == "--push" ]]; then
+  if [[ "${1-}" == "--push" ]]; then
     do_push=true
     shift
   fi
 
+  BRANCH=$(get_branch_name "$@")
+  BASE=$(detect_base)
+  echo "→ Starting sync for '${BRANCH}' against '${BASE}'"
+
   validate_prefix
+
   fetch_with_prune
   sync_rebase
-
-  #do_stash
-  # trap 'do_pop true; exit 1' ERR INT
-  # sync_base_branch
-  # merge_base_into
-  # trap - ERR INT
-  #do_pop
 
   if $do_push; then
     push_remote
