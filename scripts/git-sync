@@ -64,7 +64,7 @@ sync_branch() {
 merge_base_into() {
   echo "→ [STEP 4/5] Merge '${BASE}' into '${BRANCH}'"
   git checkout "${BRANCH}"
-  git merge --no-ff "${BASE}"
+  git rebase "${BASE}"
 }
 
 do_pop() {
