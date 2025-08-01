@@ -2,7 +2,7 @@
 #
 # git-sync [--push]
 # Sync your feature/* or bugfix/* with develop,
-# or hotfix/* with main, using git rebase.
+# or hotfix/* with main, using rebase with autostash.
 # Optionally push/create remote branch after.
 #
 set -euo pipefail
@@ -30,6 +30,14 @@ validate_prefix() {
     || error "⚠️  Branch name must start with feature/, bugfix/ or hotfix/."
 }
 
+ensure_ssh_agent() {
+  if [ -z "${SSH_AUTH_SOCK-}" ]; then
+    echo "→ Starting ssh-agent to cache passphrase"
+    eval "$(ssh-agent -s)" >/dev/null
+    ssh-add || error "⚠️  Failed to add SSH key to agent"
+  fi
+}
+
 fetch_with_prune() {
   echo "→ [STEP 1/2] Fetch remote and prune"
   git fetch --prune origin
@@ -38,7 +46,7 @@ fetch_with_prune() {
 sync_rebase() {
   echo "→ [STEP 2/2] Rebase '${BRANCH}' onto 'origin/${BASE}' with auto-stash"
   if ! git rebase "origin/${BASE}" --autostash; then
-    error "⚠️  Rebase failed. Resolve conflicts, and run 'git rebase --continue' or 'git rebase --abort'."
+    error "⚠️  Rebase failed. Resolve conflicts and run 'git rebase --continue' or 'git rebase --abort'."
   fi
 }
 
@@ -88,15 +96,15 @@ main() {
   echo "→ Starting sync for '${BRANCH}' against '${BASE}'"
 
   validate_prefix
-
+  ensure_ssh_agent
   fetch_with_prune
   sync_rebase
 
   if $do_push; then
     push_remote
-    echo "✔ Local branch '${BRANCH}' synced with '${BASE}' and pushed to 'origin/${BRANCH}'"
+    echo "✔ Local branch '${BRANCH}' rebased onto '${BASE}' and pushed to 'origin/${BRANCH}'"
   else
-    echo "✔ Local branch '${BRANCH}' synced with '${BASE}'"
+    echo "✔ Local branch '${BRANCH}' rebased onto '${BASE}'"
   fi
 }
 
