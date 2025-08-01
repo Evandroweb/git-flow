@@ -26,7 +26,7 @@ detect_base() {
 }
 
 validate_prefix() {
-  [[ "${BRANCH}" =~ ^(feature|bugfix|hotfix)/.+$ ]] \
+  [[ "${BRANCH}" =~ ^(feature|bugfix|hotfix)/[^[:space:]]+$ ]] \
     || error "⚠️  Branch name must start with feature/, bugfix/ or hotfix/."
 }
 
@@ -77,7 +77,9 @@ push_remote() {
 }
 
 main() {
-  export GIT_SSH_COMMAND="ssh -o ControlMaster=auto -o ControlPersist=45s -o ControlPath=/tmp/ssh_mux_%h_%p_%r"
+  if [[ -z "${GIT_SSH_COMMAND:-}" ]]; then
+    export GIT_SSH_COMMAND="ssh -o ControlMaster=auto -o ControlPersist=45s -o ControlPath=/tmp/ssh_mux_%h_%p_%r_$USER"
+  fi
 
   local do_push=false
   if [[ "${1-}" == "--push" ]]; then
