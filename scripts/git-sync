@@ -43,19 +43,40 @@ sync_rebase() {
 }
 
 push_remote() {
-  echo "→ [PUSH MODE] Ensure remote branch 'origin/${BRANCH}' exists"
-  if git show-ref --verify --quiet "refs/remotes/origin/${BRANCH}"; then
-    echo "↳ Remote exists → Push commits"
-    git push origin "${BRANCH}" || error "⚠️  Push failed."
-  else
-    create_remote_branch
-  fi
-}
+  echo "→ [PUSH MODE] Check remote branch 'origin/${BRANCH}'"
 
-create_remote_branch() {
-  echo "↳ Remote does not exists → Create remote branch 'origin/${BRANCH}' and push commits"
-  git push -u origin "HEAD:${BRANCH}" \
-    || error "⚠️  Failed to create remote branch."
+  git fetch origin "${BRANCH}:${BRANCH}-sync-temp" &>/dev/null || true
+  ORIGIN_OLD=$(git rev-parse "refs/heads/${BRANCH}-sync-temp")
+  LOCAL=$(git rev-parse HEAD)
+
+  git update-ref -d "refs/heads/${BRANCH}-sync-temp" &>/dev/null || true
+
+  if [[ -z "$ORIGIN_OLD" ]]; then
+    echo "↳ Remote does not exist → creating with push -u"
+    git push -u origin "HEAD:${BRANCH}" \
+      || error "⚠️  Failed to create remote branch."
+    return
+  fi
+
+  if [[ "$LOCAL" == "$ORIGIN_OLD" ]]; then
+    echo "↳ No new commits to push."
+    return
+  fi
+
+  if git merge-base --is-ancestor "$ORIGIN_OLD" "$LOCAL"; then
+    echo "↳ Remote is behind → pushing fast-forward"
+    git push origin "$BRANCH" || error "⚠️  Push failed."
+    return
+  fi
+
+  echo "⚠️  Remote has commits not in local or local was rebased."
+  read -rp "Force-push your rebased branch to origin/${BRANCH}? [y/N] " ans
+  if [[ "$ans" =~ ^[Yy]$ ]]; then
+    git push --force-with-lease origin "$BRANCH" \
+      || error "⚠️  Force-push failed."
+  else
+    error "⚠️  Push aborted. To synchronize remote manually, run:\n  git push --force-with-lease origin ${BRANCH}"
+  fi
 }
 
 main() {
