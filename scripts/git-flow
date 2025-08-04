@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+#
+# git-flow
+#
+# Entrypoint for git-sync, git-feature, git-hotfix, git-bugfix, git-propose
+# Usage: git flow <command> [args]
+# Commands:
+#   sync        Sync current branch with its base (feature/bugfix → develop or hotfix → main)
+#   feature     Create a new feature branch (from develop)
+#   hotfix      Create a new hotfix branch (from main)
+#   bugfix      Create a new bugfix branch (from develop)
+#   propose     Open PR for current branch in Azure DevOps
+#
+set -euo pipefail
+
+# --- Configuration ---
+PR_URL_BASE="https://dev.azure.com/myorg/myproject/_git/myrepo/pullrequestcreate?sourceRef="
+
+# --- Shared utilities ---
+error() { printf 'Error: %s\n' "$1" >&2; exit 1; }
+
+get_branch_name() {
+  git rev-parse --abbrev-ref HEAD 2>/dev/null \
+    || error "Not a git repo or cannot detect current branch."
+}
+
+validate_prefix() {
+  local branch=$1
+  [[ "$branch" =~ ^(feature|bugfix|hotfix)/[^[:space:]]+$ ]] \
+    || error "Branch name must start with feature/, bugfix/ or hotfix/."
+}
+
+detect_base() {
+  local branch=$1
+  [[ "${branch%%/*}" == hotfix ]] && echo main || echo develop
+}
+
+initialize_ssh() {
+  export GIT_SSH_COMMAND="ssh -o ControlMaster=auto -o ControlPersist=45s -o ControlPath=/tmp/ssh_mux_%h_%p_%r_$USER"
+}
+
+fetch_prune() {
+  echo "→ Fetching and pruning origin..."
+  git fetch --prune origin
+}
+
+conditional_push() {
+  local branch=$1 do_push=$2 action=$3
+  if $do_push; then
+    echo "→ Pushing '${branch}'..."
+    git push --force-with-lease origin "$branch" \
+      || error "Push failed for branch '${branch}'."
+    echo "✔ ${action} and pushed '${branch}'"
+  else
+    echo "✔ ${action} '${branch}'"
+  fi
+}
+
+# --- Subcommands ---
+cmd_sync() {
+  local do_push=false
+  if [[ "${1-}" == "--push" ]]; then do_push=true; shift; fi
+
+  [[ $# -eq 0 ]] || error "Usage: git flow sync [--push]"
+
+  local branch base
+  branch=$(get_branch_name)
+  base=$(detect_base "$branch")
+
+  echo "→ Syncing '$branch' against '$base'"
+  validate_prefix "$branch"
+  initialize_ssh
+  fetch_prune
+
+  echo "→ Rebasing '$branch' onto origin/$base..."
+  git rebase "origin/$base" --autostash \
+    || error "Rebase failed; resolve conflicts and run 'git rebase --continue'."
+
+  conditional_push "$branch" $do_push "Synced"
+}
+
+cmd_create() {
+  local type=$1; shift
+
+  local do_push=false
+  if [[ "${1-}" == "--push" ]]; then do_push=true; shift; fi
+
+  local param=$1
+  [[ -n "$param" ]] || error "Usage: git flow $type [--push] <name|${type}/<name>>"
+
+  local target_branch
+  if [[ "$param" =~ ^(feature|bugfix|hotfix)/.+$ ]]; then
+    target_branch="$param"
+  else
+    target_branch="${type}/${param}"
+  fi
+
+  validate_prefix "$target_branch"
+
+  local base
+  base=$(detect_base "$target_branch")
+
+  echo "→ Creating '${target_branch}' from '${base}'"
+  initialize_ssh
+  fetch_prune
+
+  git checkout "$base" \
+    || error "Failed to checkout base branch '$base'."
+  git pull --ff-only origin "$base" \
+    || error "Failed to pull latest '$base'."
+
+  git checkout -b "$target_branch" \
+    || error "Failed to create branch '$target_branch'."
+
+  conditional_push "$target_branch" $do_push "Created"
+}
+
+cmd_propose() {
+  local branch url
+  branch=$(get_branch_name)
+  url="${PR_URL_BASE}${branch}"
+
+  echo "→ Opening PR for '${branch}'"
+
+  # Linux/macOS
+  xdg-open "$url" >/dev/null 2>&1 || open "$url" >/dev/null 2>&1 || {
+    echo "Open your browser to: $url"
+  }
+}
+
+# --- Dispatcher ---
+case "${1-}" in
+  sync)    shift; cmd_sync    "$@" ;;
+  feature) shift; cmd_create feature "$@" ;;
+  hotfix)  shift; cmd_create hotfix  "$@" ;;
+  bugfix)  shift; cmd_create bugfix  "$@" ;;
+  propose) shift; cmd_propose       ;;
+  -h|--help|help|?) 
+    echo "Usage: git flow {sync|feature|hotfix|bugfix|propose} [args]"; exit 0 ;;
+  *)
+    error "Unknown command: ${1-}"; ;;
+esac
