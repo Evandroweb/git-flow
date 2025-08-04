@@ -133,11 +133,11 @@ cmd_propose() {
   remote_url=$(git remote get-url origin 2>/dev/null) \
     || { echo "Error: Could not get remote URL from 'origin'"; exit 1; }
 
-  if [[ "$remote_url" =~ git@[^:]+:([^/]+)/([^/]+)(\.git)?$ ]]; then
+  if [[ "$remote_url" =~ ^git@ssh\.dev\.azure\.com:v3/([^/]+)/([^/]+)/([^/]+)(\.git)?$ ]]; then
     org="${BASH_REMATCH[1]}"
-    project="$org"
-    repo="${BASH_REMATCH[2]}"
-  elif [[ "$remote_url" =~ https://dev.azure.com/([^/]+)/([^/]+)/_git/([^/]+)(\.git)?$ ]]; then
+    project="${BASH_REMATCH[2]}"
+    repo="${BASH_REMATCH[3]}"
+  elif [[ "$remote_url" =~ ^https://dev.azure.com/([^/]+)/([^/]+)/_git/([^/]+)(\.git)?$ ]]; then
     org="${BASH_REMATCH[1]}"
     project="${BASH_REMATCH[2]}"
     repo="${BASH_REMATCH[3]}"
