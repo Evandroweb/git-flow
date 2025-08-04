@@ -12,10 +12,12 @@
 set -euo pipefail
 
 # --- Configuration ---
-ORG="myorg"
-PROJECT="myproject"
-REPO="myrepo"
-PR_URL_BASE="https://dev.azure.com/${ORG}/${PROJECT}/_git/${REPO}/pullrequestcreate?sourceRef="
+BRANCH_TYPES="feature bugfix hotfix"
+
+GIT_ORG="myorg"
+GIT_PROJECT="myproject"
+GIT_REPO="myrepo"
+PR_URL_BASE="https://dev.azure.com/${GIT_ORG}/${PGIT_ROJECT}/_git/${GIT_REPO}/pullrequestcreate?sourceRef="
 
 # --- Shared utilities ---
 error() { printf 'Error: %s\n' "$1" >&2; exit 1; }
@@ -26,7 +28,13 @@ get_branch_name() {
 
 validate_prefix() {
   local branch=$1
-  [[ "$branch" =~ ^(feature|bugfix|hotfix)/[^[:space:]]+$ ]] || error "Branch must start with feature, bugfix or hotfix"
+  local type="${branch%%/*}"
+
+  for allowed in $BRANCH_TYPES; do
+    [[ "$type" == "$allowed" ]] && return 0
+  done
+
+  error "Branch must start with one of: $(echo "$BRANCH_TYPES" | tr ' ' ', ')"
 }
 
 detect_base() {
@@ -77,26 +85,18 @@ cmd_sync() {
 }
 
 cmd_create() {
-  local type do_push=false param
+  local do_push=false type param target_branch
 
-  if [[ "$1" =~ ^(feature|bugfix|hotfix)/(.+)$ ]]; then
-    type=${BASH_REMATCH[1]}; param=${BASH_REMATCH[2]}; shift
+  for arg in "$@"; do
+    case "$arg" in
+      --push) do_push=true ;;
+      */*)    target_branch="$arg" ;;
+      *)      [[ -z "${type:-}" ]] && type="$arg" || param="$arg" ;;
+    esac
+  done
 
-    if [[ "${1-}" == --push ]]; then do_push=true; shift; fi
-  else
-    type=$1; shift
-    [[ "$type" =~ ^(feature|bugfix|hotfix)$ ]] || error "Usage: git flow {feature,bugfix,hotfix} [--push] <name|type/name>"
-
-    if [[ "${1-}" == --push ]]; then do_push=true; shift; fi
-    param=$1; shift
-  fi
-
-  [[ -n "$param" ]] || error "Usage: git flow $type [--push] <name|${type}/<name>>"
-
-  local target_branch
-  if [[ "$param" =~ ^(feature|bugfix|hotfix)/.+$ ]]; then
-    target_branch="$param"
-  else
+  if [[ -z "${target_branch:-}" ]]; then
+    [[ -n "${type:-}" && -n "${param:-}" ]] || error "Usage: git flow {${BRANCH_TYPES// /|}} [--push] <name|type/name>"
     target_branch="${type}/${param}"
   fi
 
