@@ -4,24 +4,41 @@ Ferramenta única para gerenciar branches de *feature*, *bugfix*, *hotfix* e abe
 
 ## Instalação
 
-Execute o instalador via `curl` ou `wget` (sem precisar de configuração extra):
+Execute o instalador via `curl` ou `wget` (sem precisar de configuração extra).
+
+Você pode instalar com ou sem configuração de aliases Git. Escolha uma das formas abaixo:
+
+### 1. Padrão, com aliases
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/EvandroWeb/git-flow/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/dev-helpers/git-flow/main/install.sh | bash
 ```
 
-O script de instalação irá (automaticamente):
+O instalador irá (automaticamente):
 
 1. Baixar o binário `git-flow` para `/usr/local/bin/git-flow` (ou diretório padrão do sistema).
 2. Tornar o arquivo executável (`chmod +x`).
-3. Configurar aliases no Git:
+3. Configurar aliases globais no Git:
 
-   * `git flow` → `git-flow`
    * `git sync` → `git-flow sync`
    * `git feature` → `git-flow feature`
    * `git bugfix` → `git-flow bugfix`
    * `git hotfix` → `git-flow hotfix`
    * `git propose` e `git pr` → `git-flow propose`
+
+### 2. Sem aliases
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dev-helpers/git-flow/main/install.sh | bash -s -- --no-alias
+```
+
+Nesse modo, você deve invocar diretamente o comando git-flow:
+
+   * `git-flow sync`
+   * `git-flow feature`
+   * `git-flow bugfix`
+   * `git-flow hotfix`
+   * `git-flow propose` e `git-flow pr`
 
 ## Uso
 
@@ -69,7 +86,7 @@ git rebase --continue
 git feature login
 
 # Equivalente usando barra
-git flow feature/login
+git-flow feature/login
 
 # Cria feature/login localmente e remoto
 git feature login --push
