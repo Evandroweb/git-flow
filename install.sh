@@ -45,9 +45,10 @@ if [ "$CONFIG_ALIAS" = true ]; then
   git config --global alias.pr       "!${GIT_FLOW} propose"
 fi
 
-echo
-echo "✔ Installation / update complete!"
 echo "→ Binary installed at: ${BIN_PATH}"
-echo
 
 "${GIT_FLOW}" --help || echo "⚠️ Failed to show help — try running '${GIT_FLOW} --help' manually."
+
+echo
+echo "✔ Installation / update complete!"
+echo
