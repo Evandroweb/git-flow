@@ -1,20 +1,36 @@
 #!/usr/bin/env bash
-#
-# Entrypoint for git-sync, git-feature, git-hotfix, git-bugfix, git-propose
-# Usage: git flow <command> [args]
-# Commands:
-#   sync        Sync current branch with its base (feature/bugfix → develop or hotfix → main)
-#   feature     Create a new feature branch (from develop)
-#   hotfix      Create a new hotfix branch (from main)
-#   bugfix      Create a new bugfix branch (from develop)
-#   propose     Open PR for current branch in Azure DevOps
+# 
+# See show_help above for more info
 #
 set -euo pipefail
+
+show_help() {
+  cat << EOF
+Usage: git-flow <command> [args]
+
+Commands:
+  sync        Sync current branch with its base (feature/bugfix → develop or hotfix → main)
+  feature     Create a new feature branch (from develop)
+  hotfix      Create a new hotfix branch (from main)
+  bugfix      Create a new bugfix branch (from develop)
+  propose     Open PR for current branch in Azure DevOps
+
+Options:
+  --push      Push the branch after creating/syncing
+  --help      Show this help message
+
+Example Usage:
+  git sync
+  git feature login
+  git bugfix issue-123 --push
+  git pr
+EOF
+}
 
 # --- Configuration ---
 BRANCH_TYPES="feature bugfix hotfix"
 
-# --- Shared ---
+# --- Shared Functions ---
 error() { printf '❌ Error: %s\n' "$1" >&2; exit 1; }
 
 get_branch_name() {
@@ -158,10 +174,12 @@ cmd=${1-}
 shift || true
 
 case "$cmd" in
+  --help)
+    show_help
+    ;;
   sync)
     cmd_sync "$@"
     ;;
-
   propose|pr)
     cmd_propose_azure
     ;;
