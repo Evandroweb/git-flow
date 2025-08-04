@@ -17,7 +17,13 @@ fi
 
 sudo chmod +x "${BIN_PATH}"
 
-git config --global alias.flow "!${BIN_NAME}"
+git config --global alias.flow     "!${BIN_NAME}"
+git config --global alias.sync     "!${BIN_NAME} sync"
+git config --global alias.feature  "!${BIN_NAME} feature"
+git config --global alias.hotfix   "!${BIN_NAME} hotfix"
+git config --global alias.bugfix   "!${BIN_NAME} bugfix"
+git config --global alias.propose  "!${BIN_NAME} propose"
+git config --global alias.pr       "!${BIN_NAME} propose"
 
 cat <<EOF
 
