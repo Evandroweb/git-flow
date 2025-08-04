@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 #
-# git-flow
-#
 # Entrypoint for git-sync, git-feature, git-hotfix, git-bugfix, git-propose
 # Usage: git flow <command> [args]
 # Commands:
@@ -14,20 +12,21 @@
 set -euo pipefail
 
 # --- Configuration ---
-PR_URL_BASE="https://dev.azure.com/myorg/myproject/_git/myrepo/pullrequestcreate?sourceRef="
+ORG="myorg"
+PROJECT="myproject"
+REPO="myrepo"
+PR_URL_BASE="https://dev.azure.com/${ORG}/${PROJECT}/_git/${REPO}/pullrequestcreate?sourceRef="
 
 # --- Shared utilities ---
 error() { printf 'Error: %s\n' "$1" >&2; exit 1; }
 
 get_branch_name() {
-  git rev-parse --abbrev-ref HEAD 2>/dev/null \
-    || error "Not a git repo or cannot detect current branch."
+  git rev-parse --abbrev-ref HEAD 2>/dev/null || error "Not a git repo or cannot detect current branch"
 }
 
 validate_prefix() {
   local branch=$1
-  [[ "$branch" =~ ^(feature|bugfix|hotfix)/[^[:space:]]+$ ]] \
-    || error "Branch name must start with feature/, bugfix/ or hotfix/."
+  [[ "$branch" =~ ^(feature|bugfix|hotfix)/[^[:space:]]+$ ]] || error "Branch must start with feature, bugfix or hotfix"
 }
 
 detect_base() {
@@ -48,8 +47,7 @@ conditional_push() {
   local branch=$1 do_push=$2 action=$3
   if $do_push; then
     echo "→ Pushing '${branch}'..."
-    git push --force-with-lease origin "$branch" \
-      || error "Push failed for branch '${branch}'."
+    git push --force-with-lease origin "$branch" || error "Push failed for branch '${branch}'"
     echo "✔ ${action} and pushed '${branch}'"
   else
     echo "✔ ${action} '${branch}'"
@@ -67,23 +65,34 @@ cmd_sync() {
   branch=$(get_branch_name)
   base=$(detect_base "$branch")
 
-  echo "→ Syncing '$branch' against '$base'"
+  echo "[GIT-FLOW] Syncing '$branch' against '$base'"
   validate_prefix "$branch"
   initialize_ssh
   fetch_prune
 
   echo "→ Rebasing '$branch' onto origin/$base..."
-  git rebase "origin/$base" --autostash \
-    || error "Rebase failed; resolve conflicts and run 'git rebase --continue'."
+  git rebase "origin/$base" --autostash || error "Rebase failed; resolve conflicts and run 'git rebase --continue'"
 
   conditional_push "$branch" $do_push "Synced"
 }
 
 cmd_create() {
-  local type=$1; shift
+  local type do_push=false param
 
-  local do_push=false
-  if [[ "${1-}" == "--push" ]]; then do_push=true; shift; fi
+  if [[ "$1" =~ ^(feature|bugfix|hotfix)/(.+)$ ]]; then
+    type=${BASH_REMATCH[1]}; param=${BASH_REMATCH[2]}; shift
+
+    if [[ "$1" == --push ]]; then do_push=true; shift; fi
+  else
+    type=$1; shift
+    [[ "$type" =~ ^(feature|bugfix|hotfix)$ ]] || error "Usage: git flow {feature,bugfix,hotfix} [--push] <name|type/name>"
+
+    if [[ "$1" == --push ]]; then do_push=true; shift; fi
+    param=$1; shift
+  fi
+
+#   local do_push=false
+#   if [[ "${1-}" == "--push" ]]; then do_push=true; shift; fi
 
   local param=$1
   [[ -n "$param" ]] || error "Usage: git flow $type [--push] <name|${type}/<name>>"
@@ -100,17 +109,13 @@ cmd_create() {
   local base
   base=$(detect_base "$target_branch")
 
-  echo "→ Creating '${target_branch}' from '${base}'"
+  echo "[GIT-FLOW] Creating '${target_branch}' from '${base}'"
   initialize_ssh
   fetch_prune
 
-  git checkout "$base" \
-    || error "Failed to checkout base branch '$base'."
-  git pull --ff-only origin "$base" \
-    || error "Failed to pull latest '$base'."
-
-  git checkout -b "$target_branch" \
-    || error "Failed to create branch '$target_branch'."
+  git checkout "$base" || error "Failed to checkout base branch '$base'"
+  git pull --ff-only origin "$base" || error "Failed to pull latest '$base'"
+  git checkout -b "$target_branch" || error "Failed to create branch '$target_branch'"
 
   conditional_push "$target_branch" $do_push "Created"
 }
