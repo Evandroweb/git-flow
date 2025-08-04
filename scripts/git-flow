@@ -94,7 +94,7 @@ cmd_create() {
 #   local do_push=false
 #   if [[ "${1-}" == "--push" ]]; then do_push=true; shift; fi
 
-  local param=$1
+  # local param=$1
   [[ -n "$param" ]] || error "Usage: git flow $type [--push] <name|${type}/<name>>"
 
   local target_branch
@@ -128,20 +128,23 @@ cmd_propose() {
   echo "→ Opening PR for '${branch}'"
 
   # Linux/macOS
-  xdg-open "$url" >/dev/null 2>&1 || open "$url" >/dev/null 2>&1 || {
-    echo "Open your browser to: $url"
-  }
+  xdg-open "$url" >/dev/null 2>&1 || open "$url" >/dev/null 2>&1 || echo "Open your browser to: $url"
 }
 
 # --- Dispatcher ---
-case "${1-}" in
-  sync)    shift; cmd_sync    "$@" ;;
-  feature) shift; cmd_create feature "$@" ;;
-  hotfix)  shift; cmd_create hotfix  "$@" ;;
-  bugfix)  shift; cmd_create bugfix  "$@" ;;
-  propose) shift; cmd_propose       ;;
-  -h|--help|help|?) 
-    echo "Usage: git flow {sync|feature|hotfix|bugfix|propose} [args]"; exit 0 ;;
+cmd=${1-}
+case "$cmd" in
+  sync)
+    shift; cmd_sync "$@";;
+  feature|bugfix|hotfix)
+    shift; cmd_create "$cmd" "$@";;
+  propose|pr)
+    shift; cmd_propose;;
   *)
-    error "Unknown command: ${1-}"; ;;
+    if [[ "$cmd" =~ ^(feature|bugfix|hotfix)/ ]]; then
+      cmd_create "$cmd" "${@:2}"
+    else
+      echo "Usage: git flow {sync,feature,hotfix,bugfix,propose} [args]"
+      exit 1
+    fi;;
 esac
