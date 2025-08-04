@@ -17,7 +17,7 @@ BRANCH_TYPES="feature bugfix hotfix"
 GIT_ORG="myorg"
 GIT_PROJECT="myproject"
 GIT_REPO="myrepo"
-PR_URL_BASE="https://dev.azure.com/${GIT_ORG}/${PGIT_ROJECT}/_git/${GIT_REPO}/pullrequestcreate?sourceRef="
+PR_URL_BASE="https://dev.azure.com/${GIT_ORG}/${GIT_PROJECT}/_git/${GIT_REPO}/pullrequestcreate?sourceRef="
 
 # --- Shared utilities ---
 error() { printf 'Error: %s\n' "$1" >&2; exit 1; }
