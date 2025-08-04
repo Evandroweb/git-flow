@@ -116,43 +116,37 @@ cmd_create() {
   conditional_push "$target_branch" $do_push "Created"
 }
 
-cmd_propose() {
-  local branch remote_url org project repo url
+cmd_propose_azure() {
+  local branch base_url
 
   branch=$(get_branch_name)
+  echo "[GIT-FLOW] Creating pull request page for '$branch'..."
 
+  base_url=""
   if command -v az >/dev/null 2>&1; then
-    echo "→ Creating pull request for '$branch' using Azure CLI..."
-    if az repos pr create --detect --source-branch "$branch" --open; then
-      return 0
+    base_url=$(az repos show --detect --output tsv --query webUrl 2>/dev/null || true)
+  fi
+
+  if [[ -z "$base_url" ]]; then
+    local remote_url
+    remote_url=$(git remote get-url origin 2>/dev/null) \
+      || { echo "Error: could not get remote URL from 'origin'"; exit 1; }
+
+    if [[ "$remote_url" =~ ^git@ssh\.dev\.azure\.com:v3/([^/]+)/([^/]+)/([^/]+)(\.git)?$ ]]; then
+      base_url="https://dev.azure.com/${BASH_REMATCH[1]}/${BASH_REMATCH[2]}/_git/${BASH_REMATCH[3]}"
+    elif [[ "$remote_url" =~ ^https://dev.azure.com/([^/]+)/([^/]+)/_git/([^/]+)(\.git)?$ ]]; then
+      base_url="https://dev.azure.com/${BASH_REMATCH[1]}/${BASH_REMATCH[2]}/_git/${BASH_REMATCH[3]}"
     else
-      echo "⚠️  Failed to create pull request using Azure CLI. Falling back to manual detection..."
+      echo "❌ Could not detect Azure DevOps repository from '$remote_url'"
+      exit 1
     fi
   fi
 
-  remote_url=$(git remote get-url origin 2>/dev/null) \
-    || { echo "Error: Could not get remote URL from 'origin'"; exit 1; }
-
-  if [[ "$remote_url" =~ ^git@ssh\.dev\.azure\.com:v3/([^/]+)/([^/]+)/([^/]+)(\.git)?$ ]]; then
-    org="${BASH_REMATCH[1]}"
-    project="${BASH_REMATCH[2]}"
-    repo="${BASH_REMATCH[3]}"
-  elif [[ "$remote_url" =~ ^https://dev.azure.com/([^/]+)/([^/]+)/_git/([^/]+)(\.git)?$ ]]; then
-    org="${BASH_REMATCH[1]}"
-    project="${BASH_REMATCH[2]}"
-    repo="${BASH_REMATCH[3]}"
-  else
-    echo "❌ Could not detect Azure DevOps repository from:"
-    echo "   $remote_url"
-    exit 1
-  fi
-
-  url="https://dev.azure.com/${org}/${project}/_git/${repo}/pullrequestcreate?sourceRef=${branch}"
-  echo "→ Opening pull request in browser: $url"
+  local url="${base_url}/pullrequestcreate?sourceRef=${branch}"
 
   xdg-open "$url" >/dev/null 2>&1 \
     || open "$url" >/dev/null 2>&1 \
-    || echo "Open this URL in your browser manually: $url"
+    || echo "→ Open this URL in your browser: $url"
 }
 
 # --- Dispatcher ---
@@ -165,7 +159,7 @@ case "$cmd" in
     ;;
 
   propose|pr)
-    cmd_propose
+    cmd_propose_azure
     ;;
   *)
     for type in $BRANCH_TYPES; do
