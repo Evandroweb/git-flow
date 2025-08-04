@@ -1,29 +1,29 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO="EvandroWeb/git-flow"
-BRANCH="main"
-BASE_URL="https://raw.githack.com/${REPO}/${BRANCH}/scripts"
+GIT_FLOW="git-flow"
 
-BIN_NAME="git-flow"
-BIN_PATH="/usr/local/bin/${BIN_NAME}"
+REPO="EvandroWeb/${GIT_FLOW}"
+BASE_RAW="https://raw.githack.com/${REPO}/main/scripts"
 
-echo "→ Installing ${BIN_NAME} → ${BIN_PATH}"
+BIN_PATH="/usr/local/bin/${GIT_FLOW}"
+
+echo "→ Installing ${GIT_FLOW} → ${BIN_PATH}"
 if [ -w "$(dirname "$BIN_PATH")" ]; then
-  curl -fsSL "${BASE_RAW}/${BIN_NAME}" -o "${BIN_PATH}"
+  curl -fsSL "${BASE_RAW}/${GIT_FLOW}" -o "${BIN_PATH}"
 else
-  sudo curl -fsSL "${BASE_RAW}/${BIN_NAME}" -o "${BIN_PATH}"
+  sudo curl -fsSL "${BASE_RAW}/${GIT_FLOW}" -o "${BIN_PATH}"
 fi
 
 sudo chmod +x "${BIN_PATH}"
 
-git config --global alias.flow     "!${BIN_NAME}"
-git config --global alias.sync     "!${BIN_NAME} sync"
-git config --global alias.feature  "!${BIN_NAME} feature"
-git config --global alias.hotfix   "!${BIN_NAME} hotfix"
-git config --global alias.bugfix   "!${BIN_NAME} bugfix"
-git config --global alias.propose  "!${BIN_NAME} propose"
-git config --global alias.pr       "!${BIN_NAME} propose"
+git config --global alias.flow     "!${GIT_FLOW}"
+git config --global alias.sync     "!${GIT_FLOW} sync"
+git config --global alias.feature  "!${GIT_FLOW} feature"
+git config --global alias.hotfix   "!${GIT_FLOW} hotfix"
+git config --global alias.bugfix   "!${GIT_FLOW} bugfix"
+git config --global alias.propose  "!${GIT_FLOW} propose"
+git config --global alias.pr       "!${GIT_FLOW} propose"
 
 cat <<EOF
 
