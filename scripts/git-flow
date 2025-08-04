@@ -39,7 +39,12 @@ validate_prefix() {
 
 detect_base() {
   local branch=$1
-  [[ "${branch%%/*}" == hotfix ]] && echo main || echo develop
+  local type="${branch%%/*}"
+
+  case "$type" in
+    hotfix) echo main ;;
+    *)      echo develop ;;
+  esac
 }
 
 initialize_ssh() {
@@ -129,18 +134,28 @@ cmd_propose() {
 
 # --- Dispatcher ---
 cmd=${1-}
+shift || true
+
 case "$cmd" in
   sync)
-    shift; cmd_sync "$@";;
-  feature|bugfix|hotfix)
-    shift; cmd_create "$cmd" "$@";;
+    cmd_sync "$@"
+    ;;
+
   propose|pr)
-    shift; cmd_propose;;
+    cmd_propose
+    ;;
   *)
-    if [[ "$cmd" =~ ^(feature|bugfix|hotfix)/ ]]; then
-      cmd_create "$cmd" "${@:2}"
-    else
-      echo "Usage: git flow {sync,feature,hotfix,bugfix,propose} [args]"
-      exit 1
-    fi;;
+    for type in $BRANCH_TYPES; do
+      if [[ "$cmd" == "$type" ]]; then
+        cmd_create "$type" "$@"
+        exit
+      elif [[ "$cmd" == "$type/"* ]]; then
+        cmd_create "$cmd" "$@"
+        exit
+      fi
+    done
+
+    echo "Usage: git flow {sync,${BRANCH_TYPES// /,},propose} [args]"
+    exit 1
+    ;;
 esac
