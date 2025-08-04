@@ -7,20 +7,21 @@ BASE_RAW="https://raw.githubusercontent.com/${REPO}/main/scripts"
 BIN_PATH="/usr/local/bin/${GIT_FLOW}"
 CONFIG_ALIAS=true
 
-echo "→ Installing ${GIT_FLOW} → ${BIN_PATH}"
-if [ -w "$(dirname "${BIN_PATH}")" ]; then
-  if ! curl -fsSL "${BASE_RAW}/${GIT_FLOW}" -o "${BIN_PATH}"; then
-    echo "❌ Error: Failed to download ${BASE_RAW}/${GIT_FLOW}" >&2
-    exit 1
-  fi
-else
-  if ! sudo curl -fsSL "${BASE_RAW}/${GIT_FLOW}" -o "${BIN_PATH}"; then
-    echo "❌ Error: Failed to download ${BASE_RAW}/${GIT_FLOW} with sudo" >&2
-    exit 1
-  fi
+error() { printf '❌ Error: %s\n' "$1" >&2; exit 1; }
+
+echo "→ Installing ${GIT_FLOW}…"
+
+if ! command -v curl >/dev/null 2>&1; then
+  error "curl is not installed. Please install curl."
 fi
 
-sudo chmod +x "${BIN_PATH}"
+if ! sudo curl -fsSL "${BASE_RAW}/${GIT_FLOW}" -o "${BIN_PATH}"; then
+  error "Failed to download ${BASE_RAW}/${GIT_FLOW} with sudo"
+fi
+
+if ! sudo chmod +x "${BIN_PATH}"; then
+  error "Failed to change permissions for ${BIN_PATH}"
+fi
 
 while [[ "$#" -gt 0 ]]; do
   case "$1" in
@@ -47,6 +48,7 @@ fi
 cat <<EOF
 
 ✔ Installation complete!
+→ Installed at: ${BIN_PATH}
 
 You can now run:
   git flow sync [--push]
