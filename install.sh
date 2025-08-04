@@ -5,35 +5,29 @@ REPO="EvandroWeb/git-flow"
 BRANCH="main"
 BASE_URL="https://raw.githack.com/${REPO}/${BRANCH}/scripts"
 
-DEFAULT_DEST="/usr/local/bin"
-CMDS=(git-sync)
+BIN_NAME="git-flow"
+BIN_PATH="/usr/local/bin/${BIN_NAME}"
 
-do_install() {
-  local url=$1 dst=$2
-  echo "→ Downloading $url"
-  if [ -w "$(dirname "$dst")" ]; then
-    curl -fsSL "$url" -o "$dst"
-  else
-    sudo curl -fsSL "$url" -o "$dst"
-  fi
-  sudo chmod +x "$dst"
-}
+echo "→ Installing ${BIN_NAME} → ${BIN_PATH}"
+if [ -w "$(dirname "$BIN_PATH")" ]; then
+  curl -fsSL "${BASE_RAW}/${BIN_NAME}" -o "${BIN_PATH}"
+else
+  sudo curl -fsSL "${BASE_RAW}/${BIN_NAME}" -o "${BIN_PATH}"
+fi
 
-for cmd in "${CMDS[@]}"; do
-  url="${BASE_URL}/${cmd}"
-  dst="${DEFAULT_DEST}/${cmd}"
-  echo "Installing ${cmd} → ${dst}"
-  do_install "$url" "$dst" \
-    && echo "✓ ${cmd} installed"
-done
+sudo chmod +x "${BIN_PATH}"
 
-git config --global alias.sync "!git-sync"
-git config --global alias['sync-push'] '!git sync --push'
+git config --global alias.flow "!${BIN_NAME}"
 
 cat <<EOF
 
-✔ Installation complete!  
+✔ Installation complete!
+
 You can now run:
-  git sync feature/my-feature
+  git flow sync [--push]
+  git flow feature [--push] <name|feature/<name>>
+  git flow hotfix  [--push] <name|hotfix/<name>>
+  git flow bugfix  [--push] <name|bugfix/<name>>
+  git flow propose
 
 EOF
