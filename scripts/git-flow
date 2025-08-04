@@ -82,19 +82,15 @@ cmd_create() {
   if [[ "$1" =~ ^(feature|bugfix|hotfix)/(.+)$ ]]; then
     type=${BASH_REMATCH[1]}; param=${BASH_REMATCH[2]}; shift
 
-    if [[ "$1" == --push ]]; then do_push=true; shift; fi
+    if [[ "${1-}" == --push ]]; then do_push=true; shift; fi
   else
     type=$1; shift
     [[ "$type" =~ ^(feature|bugfix|hotfix)$ ]] || error "Usage: git flow {feature,bugfix,hotfix} [--push] <name|type/name>"
 
-    if [[ "$1" == --push ]]; then do_push=true; shift; fi
+    if [[ "${1-}" == --push ]]; then do_push=true; shift; fi
     param=$1; shift
   fi
 
-#   local do_push=false
-#   if [[ "${1-}" == "--push" ]]; then do_push=true; shift; fi
-
-  # local param=$1
   [[ -n "$param" ]] || error "Usage: git flow $type [--push] <name|${type}/<name>>"
 
   local target_branch
