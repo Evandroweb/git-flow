@@ -47,14 +47,14 @@ initialize_ssh() {
 }
 
 fetch_prune() {
-  echo "→ Fetching and pruning origin..."
+  echo "→ Fetching and pruning origin…"
   git fetch --prune origin
 }
 
 conditional_push() {
   local branch=$1 do_push=$2 action=$3
   if $do_push; then
-    echo "→ Pushing '${branch}'..."
+    echo "→ Pushing '${branch}'…"
     git push --force-with-lease origin "$branch" || error "Push failed for branch '${branch}'"
     echo "✔ ${action} and pushed '${branch}'"
   else
@@ -78,7 +78,7 @@ cmd_sync() {
   initialize_ssh
   fetch_prune
 
-  echo "→ Rebasing '$branch' onto origin/$base..."
+  echo "→ Rebasing '$branch' onto origin/$base…"
   git rebase "origin/$base" --autostash || error "Rebase failed; resolve conflicts and run 'git rebase --continue'"
 
   conditional_push "$branch" $do_push "Synced"
@@ -120,7 +120,7 @@ cmd_propose_azure() {
   local branch base_url remote_url url
 
   branch=$(get_branch_name)
-  echo "[GIT-FLOW] Generating PR creation URL for '$branch'..."
+  echo "[GIT-FLOW] Generating PR creation URL for '$branch'…"
 
   base_url=""
   if command -v az >/dev/null 2>&1 &&
