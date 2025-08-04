@@ -14,12 +14,7 @@ set -euo pipefail
 # --- Configuration ---
 BRANCH_TYPES="feature bugfix hotfix"
 
-GIT_ORG="myorg"
-GIT_PROJECT="myproject"
-GIT_REPO="myrepo"
-PR_URL_BASE="https://dev.azure.com/${GIT_ORG}/${GIT_PROJECT}/_git/${GIT_REPO}/pullrequestcreate?sourceRef="
-
-# --- Shared utilities ---
+# --- Shared ---
 error() { printf 'Error: %s\n' "$1" >&2; exit 1; }
 
 get_branch_name() {
@@ -67,7 +62,7 @@ conditional_push() {
   fi
 }
 
-# --- Subcommands ---
+# --- Commands ---
 cmd_sync() {
   local do_push=false
   if [[ "${1-}" == "--push" ]]; then do_push=true; shift; fi
@@ -122,14 +117,42 @@ cmd_create() {
 }
 
 cmd_propose() {
-  local branch url
+  local branch remote_url org project repo url
+
   branch=$(get_branch_name)
-  url="${PR_URL_BASE}${branch}"
 
-  echo "→ Opening PR for '${branch}'"
+  if command -v az >/dev/null 2>&1; then
+    echo "→ Creating pull request for '$branch' using Azure CLI..."
+    if az repos pr create --detect --source-branch "$branch" --open; then
+      return 0
+    else
+      echo "⚠️  Failed to create pull request using Azure CLI. Falling back to manual detection..."
+    fi
+  fi
 
-  # Linux/macOS
-  xdg-open "$url" >/dev/null 2>&1 || open "$url" >/dev/null 2>&1 || echo "Open your browser to: $url"
+  remote_url=$(git remote get-url origin 2>/dev/null) \
+    || { echo "Error: Could not get remote URL from 'origin'"; exit 1; }
+
+  if [[ "$remote_url" =~ git@[^:]+:([^/]+)/([^/]+)(\.git)?$ ]]; then
+    org="${BASH_REMATCH[1]}"
+    project="$org"
+    repo="${BASH_REMATCH[2]}"
+  elif [[ "$remote_url" =~ https://dev.azure.com/([^/]+)/([^/]+)/_git/([^/]+)(\.git)?$ ]]; then
+    org="${BASH_REMATCH[1]}"
+    project="${BASH_REMATCH[2]}"
+    repo="${BASH_REMATCH[3]}"
+  else
+    echo "❌ Could not detect Azure DevOps repository from:"
+    echo "   $remote_url"
+    exit 1
+  fi
+
+  url="https://dev.azure.com/${org}/${project}/_git/${repo}/pullrequestcreate?sourceRef=${branch}"
+  echo "→ Opening pull request in browser: $url"
+
+  xdg-open "$url" >/dev/null 2>&1 \
+    || open "$url" >/dev/null 2>&1 \
+    || echo "Open this URL in your browser manually: $url"
 }
 
 # --- Dispatcher ---
