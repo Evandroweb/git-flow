@@ -10,12 +10,12 @@ CONFIG_ALIAS=true
 echo "→ Installing ${GIT_FLOW} → ${BIN_PATH}"
 if [ -w "$(dirname "${BIN_PATH}")" ]; then
   if ! curl -fsSL "${BASE_RAW}/${GIT_FLOW}" -o "${BIN_PATH}"; then
-    echo "Error: Failed to download ${BASE_RAW}/${GIT_FLOW}" >&2
+    echo "❌ Error: Failed to download ${BASE_RAW}/${GIT_FLOW}" >&2
     exit 1
   fi
 else
   if ! sudo curl -fsSL "${BASE_RAW}/${GIT_FLOW}" -o "${BIN_PATH}"; then
-    echo "Error: Failed to download ${BASE_RAW}/${GIT_FLOW} with sudo" >&2
+    echo "❌ Error: Failed to download ${BASE_RAW}/${GIT_FLOW} with sudo" >&2
     exit 1
   fi
 fi
