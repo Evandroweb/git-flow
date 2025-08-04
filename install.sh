@@ -4,7 +4,7 @@ set -euo pipefail
 GIT_FLOW="git-flow"
 
 REPO="EvandroWeb/${GIT_FLOW}"
-BASE_RAW="https://raw.githack.com/${REPO}/main/scripts"
+BASE_RAW="https://raw.githubusercontent.com/${REPO}/main/scripts"
 
 BIN_PATH="/usr/local/bin/${GIT_FLOW}"
 
