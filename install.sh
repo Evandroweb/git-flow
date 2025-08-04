@@ -9,14 +9,14 @@ CONFIG_ALIAS=true
 
 error() { printf '❌ Error: %s\n' "$1" >&2; exit 1; }
 
-echo "→ Installing ${GIT_FLOW}…"
+echo "→ Installing or updating ${GIT_FLOW}…"
 
 if ! command -v curl >/dev/null 2>&1; then
-  error "curl is not installed. Please install curl."
+  error "curl is not installed. Please install curl first."
 fi
 
 if ! sudo curl -fsSL "${BASE_RAW}/${GIT_FLOW}" -o "${BIN_PATH}"; then
-  error "Failed to download ${BASE_RAW}/${GIT_FLOW} with sudo"
+  error "Failed to download ${BASE_RAW}/${GIT_FLOW} using sudo."
 fi
 
 if ! sudo chmod +x "${BIN_PATH}"; then
@@ -45,16 +45,9 @@ if [ "$CONFIG_ALIAS" = true ]; then
   git config --global alias.pr       "!${GIT_FLOW} propose"
 fi
 
-cat <<EOF
+echo
+echo "✔ Installation / update complete!"
+echo "→ Binary installed at: ${BIN_PATH}"
+echo
 
-✔ Installation complete!
-→ Installed at: ${BIN_PATH}
-
-You can now run:
-  git flow sync [--push]
-  git flow feature [--push] <name|feature/<name>>
-  git flow hotfix  [--push] <name|hotfix/<name>>
-  git flow bugfix  [--push] <name|bugfix/<name>>
-  git flow propose
-
-EOF
+"${GIT_FLOW}" --help || echo "⚠️ Failed to show help — try running '${GIT_FLOW} --help' manually."
